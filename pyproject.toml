@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "poverty-classification"
+version = "0.1.0"
+description = ""
+authors = ["LuizAlexandre21 <luizalexandre21@outlook.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9.0" 
+numpy = "^1.22.0"
+pandas = "^1.3.5"
+matplotlib = "^3.5.1"
+scikit-learn = "^1.0.2"
+scipy = "^1.7.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
