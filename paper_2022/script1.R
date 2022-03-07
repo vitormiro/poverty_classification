@@ -5,7 +5,7 @@
 
 rm(list = ls())
 options(scipen = 999)
-setwd("C:/Users/vitor/Documents/poverty_classification/paper_2021") # inserir diretório
+setwd("C:/Users/vitor/Documents/poverty_classification/paper_2022")
 
 
 ##################### Carregando os pacotes ################################
@@ -50,15 +50,22 @@ pnadc19 = get_pnadc(year = 2019,
                     deflator = TRUE,
                     defyear = 2019)
 
+
+# Salvar dados em RDS
+saveRDS(pnadc19,"pnadc19")
+
+
 #############################################
 #############################################
+# pnadc19 <- readRDS("pnadc19")
+
 class(pnadc19)
 glimpse(pnadc19)
 
 ##########################
 # Montar base apenas com variáveis selecionadas para o Ceará
-pov19ce <- pnadc19 %>% filter(UF==23) %>%
-    select('UPA', 'V1008', 'V1014', 'V2005', 'VD2002', 'V2009',
+pov19 <- pnadc19 %>% 
+    select('UF', 'UPA', 'V1008', 'V1014', 'V2005', 'VD2002', 'V2009',
            'V2007', 'V2010', 'VD4001', 'VD4002', 'V5004A', 'V1022', 
            'S01007', 'S01010', 'S01011A', 'VD4048', 'VD4019', 
            'CO2e', 'CO2', 'S01001', 'S01007', 'S01012A', 'V1022', 
@@ -70,49 +77,57 @@ pov19ce <- pnadc19 %>% filter(UF==23) %>%
 rm(pnadc19)
 
 # Primeira analise dos dados
-colSums(is.na(pov19ce))
+colSums(is.na(pov19))
 
 ##########################
 # pre processamento
 ######################
 
 # Criar variaveis individuais
-pov19ce <- pov19ce %>% 
-    mutate(hh_id = as.numeric(paste(UPA,V1008,V1014, sep = "")),
-           membro = ifelse (VD2002 < 15, 1, 0),
-           chefe = ifelse (VD2002== "01", 1, 0),
-           conjuge = ifelse (VD2002== "02", 1, 0),
-           idade = V2009,
-           crianca = ifelse (V2009 <=14, 1, 0),
-           adulto = ifelse (V2009 >= 14, 1, 0),
-           genero = factor(case_when(V2007==1 ~ "homem",
-                                     V2007==2 ~ "mulher")),
-           raca = factor(case_when(V2010==1 | V2010==3 ~ "branco",
-                                   V2010==2 | V2010==4 | V2010==5 ~ "preto ou pardo")),
-           ocupado = factor(case_when(VD4002==1 ~ "ocupado",
-                                      VD4002==2 ~ "desocupado")),
-           econ_ativo = factor(case_when(VD4001==1 ~ "econ.ativo",
+pov19 <- pov19 %>% 
+    mutate(
+        regiao = factor(ifelse(substr(UPA, start=1, stop=1)=="1","Norte",
+                               ifelse(substr(UPA, start=1, stop=1)=="2","Nordeste",
+                                      ifelse(substr(UPA, start=1, stop=1)=="3","Sudeste",
+                                             ifelse(substr(UPA, start=1, stop=1)=="4","Sul",
+                                                    ifelse(substr(UPA, start=1, stop=1)=="5","Centro-Oeste",NA))))),
+                        levels = c("Norte","Nordeste","Sudeste","Sul","Centro-Oeste")),
+        
+        hh_id = as.numeric(paste(UPA,V1008,V1014, sep = "")),
+        membro = ifelse (VD2002 < 15, 1, 0),
+        chefe = ifelse (VD2002== "01", 1, 0),
+        conjuge = ifelse (VD2002== "02", 1, 0),
+        idade = V2009,
+        crianca = ifelse (V2009 <=14, 1, 0),
+        adulto = ifelse (V2009 >= 14, 1, 0),
+        genero = factor(case_when(V2007==1 ~ "homem",
+                                  V2007==2 ~ "mulher")),
+        raca = factor(case_when(V2010==1 | V2010==3 ~ "branco",
+                                V2010==2 | V2010==4 | V2010==5 ~ "preto ou pardo")),
+        ocupado = factor(case_when(VD4002==1 ~ "ocupado",
+                                   VD4002==2 ~ "desocupado")),
+        econ_ativo = factor(case_when(VD4001==1 ~ "econ.ativo",
                                          VD4001==2 ~ "econ.inativo")),
-           atividade = factor(case_when(VD4001==1 & VD4002==1 ~ "ativo ocupado",
+        atividade = factor(case_when(VD4001==1 & VD4002==1 ~ "ativo ocupado",
                                         VD4001==1 & VD4002==2 ~ "ativo desocupado",
                                         VD4001==2 ~ "inativo")),
-           aposentadoria = factor(ifelse (V5004A==1 & !is.na(V5004A), "sim", "nao")),
-           escolaridade = factor(case_when(VD3004==1 ~ "sem instrucao",
+        aposentadoria = factor(ifelse (V5004A==1 & !is.na(V5004A), "sim", "nao")),
+        escolaridade = factor(case_when(VD3004==1 ~ "sem instrucao",
                                            VD3004==2 ~ "fundam incompleto",
                                            VD3004==3 ~ "fundam completo",
                                            VD3004==4 ~ "medio incompleto",
                                            VD3004==5 ~ "medio completo",
                                            VD3004==6 ~ "superior incompleto",
                                            VD3004==7 ~ "superior completo")),
-           area = factor(case_when(V1022==1 ~ "urbano",
+         area = factor(case_when(V1022==1 ~ "urbano",
                                    V1022==2 ~ "rural")),
            
-           ### Contruir vari?veis de renda
-           VD4048 = ifelse (is.na (VD4048), 0, VD4048),
-           VD4019 = ifelse (is.na (VD4019), 0, VD4019),
-           other_def = VD4048 * CO2e,
-           labor_def = VD4019 * CO2,
-           renda = other_def + labor_def )
+         ### Contruir vari?veis de renda
+         VD4048 = ifelse (is.na (VD4048), 0, VD4048),
+         VD4019 = ifelse (is.na (VD4019), 0, VD4019),
+         other_def = VD4048 * CO2e,
+         labor_def = VD4019 * CO2,
+         renda = other_def + labor_def )
 
 # Criar variaveis agregadas por domicilio
 pov19ce <- pov19ce %>% group_by(hh_id) %>% 
@@ -173,14 +188,14 @@ pov19ce <- pov19ce %>% mutate(
 lepbm <- 151  # US$ 1,90/dia ~ R$151/m?s
 lpbm <- 436   # US$ 5,5/dia ~ R$436/m?s 
 
-pov19ce <- pov19ce %>% 
+pov19 <- pov19ce %>% 
     mutate(pobre = factor(ifelse (rdpc< lpbm & !is.na(rdpc), "pobre", "nao pobre")),
            pobre_ex = factor(ifelse (rdpc< lepbm & !is.na(rdpc), "pobre ex", "nao pobre ex")))
 
 ######################################################
 
-povce <- pov19ce %>% filter(chefe==1) %>% 
-    select(hh_id, pobre, pobre_ex, area, labor_def, other_def, rdpc,
+pov <- pov19 %>% filter(chefe==1) %>% 
+    select(UF, regiao, hh_id, pobre, pobre_ex, area, labor_def, other_def, rdpc,
            n_moradores, n_criancas, n_adultos, casal, 
            idade, genero, raca, escolaridade, atividade, aposentadoria,
            dom_tipo, agua_adeq, esgoto_ad, banheiro, paredes, casa_tipo, 
@@ -190,6 +205,6 @@ povce <- pov19ce %>% filter(chefe==1) %>%
 # Salvar
 #saveRDS(povce, file="pov19ce")
 
-write.csv(povce,'pov19ce.csv')
+write.csv(pov,'pov19.csv')
 
 ######################################################
